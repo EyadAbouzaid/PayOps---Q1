@@ -1,0 +1,27 @@
+{
+  "name": "payops-platform",
+  "version": "1.1.0",
+  "description": "PayOps Q1 High-Reliability Payment, Billing & Invoicing Engine",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:api": "node services/api/src/index.js",
+    "start:worker": "node services/worker/src/worker.js",
+    "migrate": "node scripts/run-migrations.js",
+    "test": "node --test tests/unit/*.test.js",
+    "smoke": "bash scripts/smoke-test.sh"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.658.0",
+    "@aws-sdk/client-sqs": "^3.658.0",
+    "@aws-sdk/s3-request-presigner": "^3.658.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "ioredis": "^5.4.1",
+    "pdfkit": "^0.15.0",
+    "pg": "^8.13.0",
+    "prom-client": "^15.1.3",
+    "swagger-ui-express": "^5.0.1"
+  }
+}

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PayOps Q1 — High-Reliability Payment & Billing Engine</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- Live Infrastructure Telemetry Banner -->
+  <div id="telemetry-banner" class="telemetry-banner">
+    <span class="dot" id="status-dot"></span>
+    <strong>PayOps Live Telemetry:</strong>
+    <span id="tel-host">Host: ...</span> |
+    <span id="tel-az">AZ: ...</span> |
+    <span id="tel-sha">Commit: ...</span> |
+    <span id="tel-build">Jenkins #: ...</span> |
+    <span id="tel-rds">RDS Ping: ...</span> |
+    <span id="tel-queue">Queue: ...</span>
+  </div>
+
+  <header class="topbar">
+    <div>
+      <h1>PayOps Control Plane</h1>
+      <p class="subtitle">High-Reliability Payment Processing, S3 PDF Invoicing, Payroll Cron & Signed Webhooks</p>
+    </div>
+    <div class="controls">
+      <label for="env-mode-select">Environment Isolation:</label>
+      <select id="env-mode-select">
+        <option value="test" selected>SANDBOX / TEST MODE</option>
+        <option value="live">PRODUCTION / LIVE MODE</option>
+      </select>
+      <a href="/api-docs" target="_blank" class="btn btn-outline">OpenAPI Sandbox (/api-docs)</a>
+      <a href="/metrics" target="_blank" class="btn btn-outline">Prometheus (/metrics)</a>
+    </div>
+  </header>
+
+  <main class="grid">
+    <!-- Panel 1: Checkout Payment Simulator -->
+    <section class="card">
+      <div class="card-header">
+        <h2>1. Uninterrupted Payment Checkout</h2>
+        <span class="badge" id="payments-health-badge">Checking...</span>
+      </div>
+      <form id="payment-form" class="form-grid">
+        <input type="text" id="pay-name" placeholder="Customer Name" value="Eyad Adel" required />
+        <input type="email" id="pay-email" placeholder="Customer Email" value="merchant-buyer@example.com" required />
+        <input type="number" id="pay-amount" placeholder="Amount (cents)" value="14900" min="50" required />
+        <input type="text" id="pay-desc" placeholder="Description" value="Enterprise API Plan" />
+        <button type="submit" class="btn btn-primary">Charge & Queue Invoice + Webhook</button>
+      </form>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Customer</th><th>Amount</th><th>Status</th><th>Host</th></tr>
+          </thead>
+          <tbody id="payments-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Panel 2: Official PDF Invoices (S3 Pre-Signed URLs) -->
+    <section class="card">
+      <div class="card-header">
+        <h2>2. Automated Official PDF Invoices</h2>
+        <span class="badge" id="invoices-health-badge">Checking...</span>
+      </div>
+      <p class="hint">Generated asynchronously by Worker; click Download for a time-limited Pre-Signed link.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Invoice #</th><th>Amount</th><th>Storage</th><th>Status</th><th>Action</th></tr>
+          </thead>
+          <tbody id="invoices-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Panel 3: Automated Payroll & Subscription Scheduler -->
+    <section class="card">
+      <div class="card-header">
+        <h2>3. Payroll & Subscription Scheduler</h2>
+        <button id="run-due-btn" class="btn btn-accent">Trigger Due Batch Now</button>
+      </div>
+      <form id="schedule-form" class="form-grid">
+        <select id="sched-type">
+          <option value="payroll">Payroll Payout</option>
+          <option value="subscription">Recurring Subscription</option>
+        </select>
+        <input type="text" id="sched-name" placeholder="Schedule Name" value="Bi-Weekly Engineer Payout" required />
+        <input type="email" id="sched-email" placeholder="Recipient Email" value="eng-team@example.com" required />
+        <input type="number" id="sched-amount" placeholder="Amount (cents)" value="250000" min="100" required />
+        <button type="submit" class="btn btn-primary">Add Schedule</button>
+      </form>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Type</th><th>Name</th><th>Amount</th><th>Last Run</th></tr>
+          </thead>
+          <tbody id="schedules-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Panel 4: Signed Webhooks Audit Log & One-Click Replay -->
+    <section class="card">
+      <div class="card-header">
+        <h2>4. Signed Webhooks (HMAC-SHA256) & Replay</h2>
+        <span class="badge" id="webhooks-health-badge">Checking...</span>
+      </div>
+      <form id="webhook-form" class="form-inline">
+        <input type="url" id="wh-url" placeholder="https://merchant.example/webhook" value="http://localhost:3000/api/webhooks/mock-merchant" required />
+        <button type="submit" class="btn btn-outline">Register Endpoint</button>
+      </form>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Event</th><th>HTTP</th><th>Attempts</th><th>Status</th><th>Replay</th></tr>
+          </thead>
+          <tbody id="webhooks-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

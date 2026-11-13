@@ -1,0 +1,37 @@
+{
+  "title": "PayOps Unified Business & Infrastructure Dashboard",
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "panels": [
+    {
+      "id": 1,
+      "title": "P95 HTTP Latency by Feature (ms)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(payops_http_request_duration_ms_bucket[5m])) by (le, feature))"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Payment Throughput by Status & Mode",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(payops_transactions_total[1m])) by (status, env_mode)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Webhook Delivery Success vs Failures",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(payops_webhook_deliveries_total[5m])) by (status)"
+        }
+      ]
+    }
+  ]
+}

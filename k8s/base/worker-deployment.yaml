@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payops-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: payops-worker
+  template:
+    metadata:
+      labels:
+        app: payops-worker
+    spec:
+      containers:
+        - name: worker
+          image: 950219439587.dkr.ecr.eu-north-1.amazonaws.com/payops:latest
+          command: ["node", "services/worker/src/worker.js"]
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001

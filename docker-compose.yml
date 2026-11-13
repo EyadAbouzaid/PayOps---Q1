@@ -1,0 +1,121 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: payops-postgres
+    environment:
+      POSTGRES_DB: payops
+      POSTGRES_USER: payops_admin
+      POSTGRES_PASSWORD: change_me_in_secrets_manager
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payops_admin -d payops"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: payops-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+      args:
+        GIT_COMMIT_SHA: local-compose
+        JENKINS_BUILD_NUMBER: "1"
+    container_name: payops-api
+    environment:
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: payops
+      DB_USER: payops_admin
+      DB_PASSWORD: change_me_in_secrets_manager
+      DB_SSL: "false"
+      QUEUE_DRIVER: redis
+      REDIS_URL: redis://redis:6379
+      SERVE_STATIC_FRONTEND: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - invoice_data:/app/storage/invoices
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/worker/Dockerfile
+      args:
+        GIT_COMMIT_SHA: local-compose
+        JENKINS_BUILD_NUMBER: "1"
+    container_name: payops-worker
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: payops
+      DB_USER: payops_admin
+      DB_PASSWORD: change_me_in_secrets_manager
+      DB_SSL: "false"
+      QUEUE_DRIVER: redis
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - invoice_data:/app/storage/invoices
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: services/frontend/Dockerfile
+    container_name: payops-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: payops-prometheus
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: payops-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3002:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  pgdata:
+  invoice_data:
