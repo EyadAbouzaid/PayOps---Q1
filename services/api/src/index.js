@@ -25,7 +25,7 @@ function createApp() {
   app.use(express.json({ limit: '1mb' }));
   app.use(attachRequestContext);
 
-  // 1. Live Telemetry & Root Health (/status, /health)
+  // 1. Live Telemetry, Logs & Root Health (/status, /status/logs, /health)
   app.use('/', telemetryRoutes);
 
   // 2. Prometheus Metrics (/metrics)
@@ -40,19 +40,22 @@ function createApp() {
   }));
   app.get('/api-docs.json', (req, res) => res.json(openApiSpec));
 
-  // 4. Decoupled Feature Micro-Routes (Each with isolated /health and logs)
+  // 4. Decoupled Feature Micro-Routes
   app.use('/api/payments', paymentsRoutes);
   app.use('/api/invoices', invoicesRoutes);
   app.use('/api/billing', billingRoutes);
   app.use('/api/webhooks', webhooksRoutes);
 
-  // 5. Optional Static Frontend Hosting (keeps single Port 3000 ALB target working seamlessly)
+  // 5. Static Multi-Page SPA Frontend Hosting
   if (config.serveStaticFrontend) {
     const publicDir = path.join(process.cwd(), 'services', 'frontend', 'public');
     app.use(express.static(publicDir));
+    app.get(/^\/(overview|checkout|transactions|billing|webhooks|logs)\/?$/, (_req, res) => {
+      res.sendFile(path.join(publicDir, 'index.html'));
+    });
   }
 
-  // Centralized Error Handler with Trace ID for fast CloudWatch troubleshooting
+  // Centralized Error Handler with Trace ID
   app.use((err, req, res, _next) => {
     log.error('Unhandled API route exception', {
       traceId: req.traceId,
@@ -81,7 +84,6 @@ async function startApiServer() {
       resolve(server);
     });
 
-    // Zero-downtime graceful shutdown on ECS SIGTERM
     process.on('SIGTERM', () => {
       log.info('SIGTERM received: draining active HTTP connections gracefully');
       server.close(() => {

@@ -2,7 +2,7 @@ const express = require('express');
 const config = require('../../../../../shared/config');
 const db = require('../../../../../shared/db');
 const queue = require('../../../../../shared/queue');
-const { createLogger } = require('../../../../../shared/logger');
+const { createLogger, getRecentLogs } = require('../../../../../shared/logger');
 
 const router = express.Router();
 const log = createLogger('telemetry');
@@ -95,6 +95,17 @@ router.get('/status', async (req, res) => {
     queue: queueHealth,
     storageDriver: config.storage.s3Bucket ? 's3' : 'local-fallback',
     timestamp: new Date().toISOString()
+  });
+});
+
+// Live Structured Logs Endpoint for UI "System & Logs" Page (Filterable by feature & level)
+router.get('/status/logs', (req, res) => {
+  const { feature = 'all', level = 'all', limit = '80' } = req.query;
+  const logs = getRecentLogs({ feature, level, limit });
+  res.json({
+    count: logs.length,
+    filters: { feature, level },
+    logs
   });
 });
 

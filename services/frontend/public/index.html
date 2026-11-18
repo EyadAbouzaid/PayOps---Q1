@@ -3,127 +3,507 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PayOps Q1 — High-Reliability Payment & Billing Engine</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <title>PayOps — Simple, Reliable Payments & Invoicing</title>
+  <link rel="stylesheet" href="/css/app.css" />
 </head>
 <body>
-  <!-- Live Infrastructure Telemetry Banner -->
-  <div id="telemetry-banner" class="telemetry-banner">
-    <span class="dot" id="status-dot"></span>
-    <strong>PayOps Live Telemetry:</strong>
-    <span id="tel-host">Host: ...</span> |
-    <span id="tel-az">AZ: ...</span> |
-    <span id="tel-sha">Commit: ...</span> |
-    <span id="tel-build">Jenkins #: ...</span> |
-    <span id="tel-rds">RDS Ping: ...</span> |
-    <span id="tel-queue">Queue: ...</span>
+  <div id="app-layout" class="app-layout">
+    <!-- Clean Sidebar Navigation Categorized by Audience -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-logo">P</div>
+        <div>
+          <div class="brand-name">PayOps</div>
+          <div class="brand-tagline">Payments & Billing</div>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-label">Customer & Business</div>
+        <button class="nav-item active" data-page="overview">
+          <span class="nav-icon">&#9673;</span>
+          <span>Overview</span>
+        </button>
+        <button class="nav-item" data-page="checkout">
+          <span class="nav-icon">&#10003;</span>
+          <span>Quick Checkout</span>
+        </button>
+        <button class="nav-item" data-page="transactions">
+          <span class="nav-icon">&#9776;</span>
+          <span>Payments & Invoices</span>
+        </button>
+        <button class="nav-item" data-page="billing">
+          <span class="nav-icon">&#8635;</span>
+          <span>Subscriptions & Payroll</span>
+        </button>
+      </div>
+
+      <!-- Collapsible Developer & Ops Section (Tucked neatly in Production so customers see a clean UI) -->
+      <div class="nav-group nav-group-ops">
+        <button type="button" class="nav-group-toggle" id="dev-nav-toggle">
+          <span>Developer & Ops</span>
+          <span class="chevron" id="dev-nav-chevron">&#9662;</span>
+        </button>
+        <div id="dev-nav-items" class="dev-nav-items">
+          <button class="nav-item" data-page="webhooks">
+            <span class="nav-icon">&#8644;</span>
+            <span>Webhooks & API</span>
+          </button>
+          <button class="nav-item" data-page="logs">
+            <span class="nav-icon">&#9881;</span>
+            <span>System Health & Logs</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="sys-pill" id="sidebar-sys-pill" title="Click to view System Health & Logs">
+          <span class="status-dot" id="global-health-dot"></span>
+          <span id="global-health-text">All Systems Operational</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Area -->
+    <div class="main-shell">
+      <!-- Top Header Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="mobile-menu-btn" id="mobile-menu-btn">&#9776;</button>
+          <div>
+            <h1 id="page-title">Overview</h1>
+            <p id="page-subtitle" class="page-subtitle">Your live revenue, recent payments, and ready invoices at a glance.</p>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Subtle Sandbox Indicator (Automatically hidden in Production Mode) -->
+          <span id="sandbox-pill" class="mode-badge sandbox hidden">Sandbox Test Data</span>
+
+          <div class="mode-Segmented" role="group" aria-label="Environment Mode">
+            <button type="button" class="seg-btn active" data-mode="live" id="mode-live-btn">Production</button>
+            <button type="button" class="seg-btn" data-mode="test" id="mode-test-btn">Sandbox</button>
+          </div>
+
+          <button type="button" class="btn btn-primary" id="header-new-payment-btn">+ New Payment</button>
+        </div>
+      </header>
+
+      <!-- Exit Customer-Only Preview Banner (Visible only when previewing standalone buyer checkout) -->
+      <div id="customer-preview-bar" class="customer-preview-bar hidden">
+        <span>Viewing distraction-free <strong>Customer Checkout Screen</strong> (what your end-buyer sees).</span>
+        <button type="button" class="btn btn-sm btn-outline-light" id="exit-customer-preview-btn">Back to Dashboard</button>
+      </div>
+
+      <main class="page-container">
+        <!-- ==========================================
+             PAGE 1: BUSINESS OVERVIEW (Clean & Simple)
+             ========================================== -->
+        <section id="page-overview" class="page-view active">
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">Total Processed Volume</div>
+              <div class="kpi-value" id="kpi-volume">$0.00</div>
+              <div class="kpi-foot">Completed charges in current mode</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Successful Payments</div>
+              <div class="kpi-value" id="kpi-count">0</div>
+              <div class="kpi-foot">Zero-downtime checkout engine</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Official PDF Invoices</div>
+              <div class="kpi-value" id="kpi-invoices">0</div>
+              <div class="kpi-foot">Ready for instant download</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Active Recurring Plans</div>
+              <div class="kpi-value" id="kpi-schedules">0</div>
+              <div class="kpi-foot">Automated subscriptions & payroll</div>
+            </div>
+          </div>
+
+          <div class="two-col-overview">
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <h2>Recent Customer Payments</h2>
+                  <p class="muted">Latest transactions and their official PDF receipts</p>
+                </div>
+                <button type="button" class="btn btn-ghost btn-sm" data-goto="transactions">View All &rarr;</button>
+              </div>
+              <div id="overview-recent-list" class="clean-list"></div>
+            </div>
+
+            <div class="card quick-actions-card">
+              <h2>Quick Actions</h2>
+              <p class="muted">Everything you need to collect money and bill customers</p>
+              <div class="action-stack">
+                <button type="button" class="action-tile" data-goto="checkout">
+                  <div class="action-tile-title">Accept a Customer Payment</div>
+                  <div class="action-tile-desc">Open the clean checkout form & generate an official PDF receipt automatically.</div>
+                </button>
+                <button type="button" class="action-tile" data-goto="transactions">
+                  <div class="action-tile-title">Download Tax / PDF Invoices</div>
+                  <div class="action-tile-desc">Retrieve secure, time-limited download links for any completed payment.</div>
+                </button>
+                <button type="button" class="action-tile" data-goto="billing">
+                  <div class="action-tile-title">Schedule Subscription or Payroll</div>
+                  <div class="action-tile-desc">Automate monthly customer retainers or team payouts in the background.</div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================
+             PAGE 2: CUSTOMER-FRIENDLY CHECKOUT
+             ========================================== -->
+        <section id="page-checkout" class="page-view">
+          <div class="checkout-toolbar">
+            <span class="muted">Clean payment experience designed for everyday customers — enter normal currency amounts.</span>
+            <button type="button" class="btn btn-outline btn-sm" id="enter-customer-preview-btn">Preview Buyer-Only Screen</button>
+          </div>
+
+          <div class="checkout-wrapper">
+            <!-- Left: Order Summary & Trust Card -->
+            <div class="checkout-summary-card">
+              <div class="summary-badge">Secure Checkout</div>
+              <h2 id="live-summary-desc">Standard Business Order</h2>
+              <div class="summary-price-row">
+                <span id="live-summary-amount">$149.00</span>
+                <span id="live-summary-currency" class="summary-currency">USD</span>
+              </div>
+              <ul class="summary-perks">
+                <li>Instant payment confirmation</li>
+                <li>Official PDF invoice generated automatically</li>
+                <li>Real-time store notification</li>
+              </ul>
+            </div>
+
+            <!-- Right: Clean Customer Form OR Instant Receipt -->
+            <div class="card checkout-form-card">
+              <form id="checkout-form">
+                <h2>Payment Details</h2>
+                <p class="muted mb-16">Complete the fields below to process your payment immediately.</p>
+
+                <div class="payment-methods" role="radiogroup" aria-label="Payment Method">
+                  <label class="method-pill selected">
+                    <input type="radio" name="pay_method" value="card" checked />
+                    <span>Credit / Debit Card</span>
+                  </label>
+                  <label class="method-pill">
+                    <input type="radio" name="pay_method" value="wallet" />
+                    <span>Digital Wallet</span>
+                  </label>
+                  <label class="method-pill">
+                    <input type="radio" name="pay_method" value="bank" />
+                    <span>Bank Transfer</span>
+                  </label>
+                </div>
+
+                <div class="field-group">
+                  <label for="co-name">Full Name</label>
+                  <input type="text" id="co-name" placeholder="e.g. Sarah Ahmed" value="Sarah Ahmed" required />
+                </div>
+
+                <div class="field-group">
+                  <label for="co-email">Email Address (for PDF Invoice)</label>
+                  <input type="email" id="co-email" placeholder="name@company.com" value="sarah@customer-example.com" required />
+                </div>
+
+                <div class="field-row">
+                  <div class="field-group">
+                    <label for="co-amount">Amount</label>
+                    <input type="number" id="co-amount" step="0.01" min="0.50" value="149.00" required />
+                  </div>
+                  <div class="field-group">
+                    <label for="co-currency">Currency</label>
+                    <select id="co-currency">
+                      <option value="USD" selected>USD ($)</option>
+                      <option value="EUR">EUR (&euro;)</option>
+                      <option value="EGP">EGP (E&pound;)</option>
+                      <option value="SAR">SAR</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="field-group">
+                  <label for="co-desc">What is this payment for?</label>
+                  <input type="text" id="co-desc" placeholder="e.g. Annual Cloud Subscription" value="Standard Business Order" />
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block btn-lg" id="co-submit-btn">
+                  Pay $149.00 Now
+                </button>
+              </form>
+
+              <!-- Success Receipt State -->
+              <div id="checkout-receipt" class="receipt-box hidden">
+                <div class="receipt-check">&#10003;</div>
+                <h2>Payment Successful!</h2>
+                <p class="muted" id="receipt-subtitle">Thank you! Your official PDF invoice is being prepared.</p>
+                <div class="receipt-details" id="receipt-details"></div>
+                <div class="receipt-actions">
+                  <button type="button" class="btn btn-primary" id="receipt-download-btn">Download Official PDF Invoice</button>
+                  <button type="button" class="btn btn-outline" id="receipt-new-btn">Make Another Payment</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================
+             PAGE 3: UNIFIED PAYMENTS & OFFICIAL INVOICES
+             ========================================== -->
+        <section id="page-transactions" class="page-view">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h2>Customer Payments & Official Invoices</h2>
+                <p class="muted">Search transactions and download official time-limited PDF invoices</p>
+              </div>
+              <div class="filter-bar">
+                <input type="search" id="tx-search" placeholder="Search customer email or invoice #..." />
+                <select id="tx-filter-status">
+                  <option value="all">All Statuses</option>
+                  <option value="ready">PDF Ready</option>
+                  <option value="generating">PDF Generating</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="clean-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Payment</th>
+                    <th>Official Invoice</th>
+                  </tr>
+                </thead>
+                <tbody id="tx-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================
+             PAGE 4: SUBSCRIPTIONS & PAYROLL SCHEDULER
+             ========================================== -->
+        <section id="page-billing" class="page-view">
+          <div class="two-col-billing">
+            <div class="card">
+              <h2>Create Recurring Plan</h2>
+              <p class="muted mb-16">Set up automatic customer subscriptions or scheduled team payroll</p>
+
+              <form id="billing-form">
+                <div class="field-group">
+                  <label for="bill-type">Plan Category</label>
+                  <select id="bill-type">
+                    <option value="subscription">Customer Subscription (Recurring Charge)</option>
+                    <option value="payroll">Team Payroll (Scheduled Payout)</option>
+                  </select>
+                </div>
+
+                <div class="field-group">
+                  <label for="bill-name">Plan or Employee Name</label>
+                  <input type="text" id="bill-name" placeholder="e.g. Pro Monthly Retainer" required />
+                </div>
+
+                <div class="field-group">
+                  <label for="bill-email">Customer / Recipient Email</label>
+                  <input type="email" id="bill-email" placeholder="billing@client.com" required />
+                </div>
+
+                <div class="field-row">
+                  <div class="field-group">
+                    <label for="bill-amount">Amount</label>
+                    <input type="number" id="bill-amount" step="0.01" min="1.00" placeholder="299.00" value="299.00" required />
+                  </div>
+                  <div class="field-group">
+                    <label for="bill-frequency">Billing Frequency</label>
+                    <select id="bill-frequency">
+                      <option value="0 0 1 * *">Monthly (1st of month)</option>
+                      <option value="0 9 1,15 * *">Bi-Weekly (1st & 15th)</option>
+                      <option value="0 9 * * 1">Weekly (Every Monday)</option>
+                      <option value="0 0 * * *">Daily</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block">Save Recurring Schedule</button>
+              </form>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <div>
+                  <h2>Active Schedules</h2>
+                  <p class="muted">Runs automatically in the background without slowing checkout</p>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" id="run-due-schedules-btn">Run Due Cycles Now</button>
+              </div>
+
+              <div class="table-responsive">
+                <table class="clean-table">
+                  <thead>
+                    <tr>
+                      <th>Category</th>
+                      <th>Plan Name</th>
+                      <th>Amount</th>
+                      <th>Frequency</th>
+                      <th>Last Executed</th>
+                    </tr>
+                  </thead>
+                  <tbody id="billing-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================
+             PAGE 5: DEVELOPER WEBHOOKS & API SANDBOX
+             ========================================== -->
+        <section id="page-webhooks" class="page-view">
+          <div class="dev-banner card">
+            <div>
+              <h2>Store Integration & Interactive OpenAPI</h2>
+              <p class="muted">Every event is signed with <code>HMAC-SHA256</code> via the <code>X-PayOps-Signature</code> header so your store never misses an order confirmation.</p>
+            </div>
+            <div class="dev-banner-actions">
+              <a href="/api-docs" target="_blank" class="btn btn-primary">Open Interactive API Docs (/api-docs)</a>
+            </div>
+          </div>
+
+          <div class="card mt-18">
+            <div class="card-head">
+              <div>
+                <h2>Webhook Endpoints</h2>
+                <p class="muted">Register your merchant store URL to receive real-time payment & invoice events</p>
+              </div>
+            </div>
+            <form id="wh-endpoint-form" class="inline-add-form">
+              <input type="url" id="wh-target-url" placeholder="https://your-store.com/webhooks/payops" value="http://localhost:3000/api/webhooks/mock-merchant" required />
+              <button type="submit" class="btn btn-outline">Add Endpoint</button>
+            </form>
+            <div id="wh-endpoints-list" class="endpoints-pills"></div>
+          </div>
+
+          <div class="card mt-18">
+            <div class="card-head">
+              <div>
+                <h2>Webhook Delivery Audit Log & Instant Replay</h2>
+                <p class="muted">Inspect HTTP response codes from merchant stores and resend any notification in one click</p>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="refresh-wh-btn">Refresh</button>
+            </div>
+            <div class="table-responsive">
+              <table class="clean-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Event Type</th>
+                    <th>Target URL</th>
+                    <th>HTTP Code</th>
+                    <th>Attempts</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="wh-deliveries-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================
+             PAGE 6: SYSTEM HEALTH, TELEMETRY & LIVE LOGS
+             ========================================== -->
+        <section id="page-logs" class="page-view">
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">Container / Hostname</div>
+              <div class="kpi-value mono-sm" id="sys-host">...</div>
+              <div class="kpi-foot" id="sys-az">AWS AZ: ...</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">CI/CD Release Version</div>
+              <div class="kpi-value mono-sm" id="sys-sha">...</div>
+              <div class="kpi-foot" id="sys-build">Jenkins Build #...</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">RDS PostgreSQL Latency</div>
+              <div class="kpi-value" id="sys-rds">...</div>
+              <div class="kpi-foot" id="sys-ssl">SSL: ...</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Async Worker Queue</div>
+              <div class="kpi-value mono-sm" id="sys-queue">...</div>
+              <div class="kpi-foot" id="sys-storage">Invoice Storage: ...</div>
+            </div>
+          </div>
+
+          <div class="card mt-18">
+            <div class="card-head">
+              <div>
+                <h2>Individual Feature Health Probes</h2>
+                <p class="muted">Isolate and verify every backend JS module independently after deployment</p>
+              </div>
+              <div class="dev-banner-actions">
+                <a href="/status" target="_blank" class="btn btn-outline btn-sm">Raw /status JSON</a>
+                <a href="/metrics" target="_blank" class="btn btn-outline btn-sm">Prometheus /metrics</a>
+              </div>
+            </div>
+            <div id="feature-probes-grid" class="probes-grid"></div>
+          </div>
+
+          <div class="card mt-18">
+            <div class="card-head">
+              <div>
+                <h2>Live Structured Application Logs</h2>
+                <p class="muted">Filter container logs by JS feature module or severity (mirrors CloudWatch <code>/ecs/payops-task</code>)</p>
+              </div>
+              <div class="filter-bar">
+                <select id="log-feature-filter">
+                  <option value="all">All Features</option>
+                  <option value="payments">payments</option>
+                  <option value="invoices">invoices</option>
+                  <option value="billing">billing</option>
+                  <option value="webhooks">webhooks</option>
+                  <option value="worker">worker</option>
+                  <option value="telemetry">telemetry</option>
+                </select>
+                <select id="log-level-filter">
+                  <option value="all">All Levels</option>
+                  <option value="INFO">INFO</option>
+                  <option value="WARN">WARN</option>
+                  <option value="ERROR">ERROR</option>
+                </select>
+                <button type="button" class="btn btn-outline btn-sm" id="refresh-logs-btn">Refresh Logs</button>
+              </div>
+            </div>
+            <div id="logs-terminal" class="logs-terminal">Loading structured logs...</div>
+          </div>
+        </section>
+      </main>
+    </div>
   </div>
 
-  <header class="topbar">
-    <div>
-      <h1>PayOps Control Plane</h1>
-      <p class="subtitle">High-Reliability Payment Processing, S3 PDF Invoicing, Payroll Cron & Signed Webhooks</p>
-    </div>
-    <div class="controls">
-      <label for="env-mode-select">Environment Isolation:</label>
-      <select id="env-mode-select">
-        <option value="test" selected>SANDBOX / TEST MODE</option>
-        <option value="live">PRODUCTION / LIVE MODE</option>
-      </select>
-      <a href="/api-docs" target="_blank" class="btn btn-outline">OpenAPI Sandbox (/api-docs)</a>
-      <a href="/metrics" target="_blank" class="btn btn-outline">Prometheus (/metrics)</a>
-    </div>
-  </header>
-
-  <main class="grid">
-    <!-- Panel 1: Checkout Payment Simulator -->
-    <section class="card">
-      <div class="card-header">
-        <h2>1. Uninterrupted Payment Checkout</h2>
-        <span class="badge" id="payments-health-badge">Checking...</span>
-      </div>
-      <form id="payment-form" class="form-grid">
-        <input type="text" id="pay-name" placeholder="Customer Name" value="Eyad Adel" required />
-        <input type="email" id="pay-email" placeholder="Customer Email" value="merchant-buyer@example.com" required />
-        <input type="number" id="pay-amount" placeholder="Amount (cents)" value="14900" min="50" required />
-        <input type="text" id="pay-desc" placeholder="Description" value="Enterprise API Plan" />
-        <button type="submit" class="btn btn-primary">Charge & Queue Invoice + Webhook</button>
-      </form>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>ID</th><th>Customer</th><th>Amount</th><th>Status</th><th>Host</th></tr>
-          </thead>
-          <tbody id="payments-tbody"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Panel 2: Official PDF Invoices (S3 Pre-Signed URLs) -->
-    <section class="card">
-      <div class="card-header">
-        <h2>2. Automated Official PDF Invoices</h2>
-        <span class="badge" id="invoices-health-badge">Checking...</span>
-      </div>
-      <p class="hint">Generated asynchronously by Worker; click Download for a time-limited Pre-Signed link.</p>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Invoice #</th><th>Amount</th><th>Storage</th><th>Status</th><th>Action</th></tr>
-          </thead>
-          <tbody id="invoices-tbody"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Panel 3: Automated Payroll & Subscription Scheduler -->
-    <section class="card">
-      <div class="card-header">
-        <h2>3. Payroll & Subscription Scheduler</h2>
-        <button id="run-due-btn" class="btn btn-accent">Trigger Due Batch Now</button>
-      </div>
-      <form id="schedule-form" class="form-grid">
-        <select id="sched-type">
-          <option value="payroll">Payroll Payout</option>
-          <option value="subscription">Recurring Subscription</option>
-        </select>
-        <input type="text" id="sched-name" placeholder="Schedule Name" value="Bi-Weekly Engineer Payout" required />
-        <input type="email" id="sched-email" placeholder="Recipient Email" value="eng-team@example.com" required />
-        <input type="number" id="sched-amount" placeholder="Amount (cents)" value="250000" min="100" required />
-        <button type="submit" class="btn btn-primary">Add Schedule</button>
-      </form>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Type</th><th>Name</th><th>Amount</th><th>Last Run</th></tr>
-          </thead>
-          <tbody id="schedules-tbody"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Panel 4: Signed Webhooks Audit Log & One-Click Replay -->
-    <section class="card">
-      <div class="card-header">
-        <h2>4. Signed Webhooks (HMAC-SHA256) & Replay</h2>
-        <span class="badge" id="webhooks-health-badge">Checking...</span>
-      </div>
-      <form id="webhook-form" class="form-inline">
-        <input type="url" id="wh-url" placeholder="https://merchant.example/webhook" value="http://localhost:3000/api/webhooks/mock-merchant" required />
-        <button type="submit" class="btn btn-outline">Register Endpoint</button>
-      </form>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Event</th><th>HTTP</th><th>Attempts</th><th>Status</th><th>Replay</th></tr>
-          </thead>
-          <tbody id="webhooks-tbody"></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
-
   <div id="toast" class="toast hidden"></div>
-  <script src="/app.js"></script>
+
+  <!-- Modular Per-Feature Frontend Scripts -->
+  <script src="/js/api.js"></script>
+  <script src="/js/pages/overview.js"></script>
+  <script src="/js/pages/checkout.js"></script>
+  <script src="/js/pages/transactions.js"></script>
+  <script src="/js/pages/billing.js"></script>
+  <script src="/js/pages/webhooks.js"></script>
+  <script src="/js/pages/system-logs.js"></script>
+  <script src="/js/main.js"></script>
 </body>
 </html>

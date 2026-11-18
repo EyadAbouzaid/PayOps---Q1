@@ -1,8 +1,17 @@
 const config = require('./config');
 
+const MAX_RECENT_LOGS = 250;
+const recentLogs = [];
+
+function pushRecentLog(record) {
+  recentLogs.unshift(record);
+  if (recentLogs.length > MAX_RECENT_LOGS) {
+    recentLogs.length = MAX_RECENT_LOGS;
+  }
+}
+
 /**
- * Structured JSON Logger for CloudWatch Logs Live Tail (/ecs/payops-task)
- * Filter in CloudWatch by: { $.feature = "payments" && $.level = "ERROR" }
+ * Structured JSON Logger for CloudWatch Logs (/ecs/payops-task) + UI Logs Explorer
  */
 function createLogger(feature) {
   function emit(level, message, meta = {}) {
@@ -17,6 +26,7 @@ function createLogger(feature) {
       message,
       ...meta
     };
+    pushRecentLog(record);
     const line = JSON.stringify(record);
     if (level === 'ERROR') {
       process.stderr.write(line + '\n');
@@ -35,4 +45,15 @@ function createLogger(feature) {
   };
 }
 
-module.exports = { createLogger };
+function getRecentLogs({ feature = '', level = '', limit = 80 } = {}) {
+  const capped = Math.min(Math.max(parseInt(limit, 10) || 80, 1), MAX_RECENT_LOGS);
+  return recentLogs
+    .filter((item) => {
+      if (feature && feature !== 'all' && !String(item.feature).startsWith(feature)) return false;
+      if (level && level !== 'all' && item.level !== level.toUpperCase()) return false;
+      return true;
+    })
+    .slice(0, capped);
+}
+
+module.exports = { createLogger, getRecentLogs };
