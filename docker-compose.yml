@@ -1,0 +1,176 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ecommerce}
+      POSTGRES_USER: ${POSTGRES_USER:-ecommerce}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ecommerce_secret}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ecommerce_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ecommerce} -d ${POSTGRES_DB:-ecommerce}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_HOST_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  payops-mock:
+    build: ./services/payops-mock
+    environment:
+      PORT: 3005
+      HOST: 0.0.0.0
+      PAYOPS_WEBHOOK_SECRET: ${PAYOPS_WEBHOOK_SECRET:-whsec_test_demo_secret_1234567890}
+      ORDER_WEBHOOK_CALLBACK_URL: http://order-service:4001/api/webhooks/payments
+    ports:
+      - "${PAYOPS_MOCK_PORT:-3005}:3005"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3005/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  auth-service:
+    build: ./services/auth-service
+    environment:
+      PORT: 4004
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${POSTGRES_USER:-ecommerce}:${POSTGRES_PASSWORD:-ecommerce_secret}@postgres:5432/${POSTGRES_DB:-ecommerce}
+      JWT_SECRET: ${JWT_SECRET:-super_secret_ecommerce_jwt_key_change_me}
+    ports:
+      - "${AUTH_SERVICE_PORT:-4004}:4004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4004/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  product-service:
+    build: ./services/product-service
+    environment:
+      PORT: 4002
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${POSTGRES_USER:-ecommerce}:${POSTGRES_PASSWORD:-ecommerce_secret}@postgres:5432/${POSTGRES_DB:-ecommerce}
+    ports:
+      - "${PRODUCT_SERVICE_PORT:-4002}:4002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4002/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  search-service:
+    build: ./services/search-service
+    environment:
+      PORT: 4005
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${POSTGRES_USER:-ecommerce}:${POSTGRES_PASSWORD:-ecommerce_secret}@postgres:5432/${POSTGRES_DB:-ecommerce}
+    ports:
+      - "${SEARCH_SERVICE_PORT:-4005}:4005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4005/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  cart-service:
+    build: ./services/cart-service
+    environment:
+      PORT: 4003
+      HOST: 0.0.0.0
+      DATABASE_URL: postgres://${POSTGRES_USER:-ecommerce}:${POSTGRES_PASSWORD:-ecommerce_secret}@postgres:5432/${POSTGRES_DB:-ecommerce}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-super_secret_ecommerce_jwt_key_change_me}
+    ports:
+      - "${CART_SERVICE_PORT:-4003}:4003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4003/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  order-service:
+    build: ./services/order-service
+    environment:
+      PORT: 4001
+      HOST: 0.0.0.0
+      CURRENCY: ${CURRENCY:-USD}
+      DATABASE_URL: postgres://${POSTGRES_USER:-ecommerce}:${POSTGRES_PASSWORD:-ecommerce_secret}@postgres:5432/${POSTGRES_DB:-ecommerce}
+      JWT_SECRET: ${JWT_SECRET:-super_secret_ecommerce_jwt_key_change_me}
+      PAYOPS_API_URL: ${PAYOPS_API_URL:-http://payops-mock:3005}
+      PAYOPS_API_KEY: ${PAYOPS_API_KEY:-sk_test_demo_000000000000000000000000}
+      PAYOPS_MODE: ${PAYOPS_MODE:-test}
+      PAYOPS_WEBHOOK_SECRET: ${PAYOPS_WEBHOOK_SECRET:-whsec_test_demo_secret_1234567890}
+      RECONCILE_INTERVAL_MS: ${RECONCILE_INTERVAL_MS:-120000}
+      PENDING_ORDER_TIMEOUT_MINUTES: ${PENDING_ORDER_TIMEOUT_MINUTES:-30}
+    ports:
+      - "${ORDER_SERVICE_PORT:-4001}:4001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      payops-mock:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4001/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  frontend:
+    build: ./frontend
+    environment:
+      PORT: 5173
+      HOST: 0.0.0.0
+      VITE_AUTH_API_URL: http://localhost:${AUTH_SERVICE_PORT:-4004}
+      VITE_PRODUCT_API_URL: http://localhost:${PRODUCT_SERVICE_PORT:-4002}
+      VITE_SEARCH_API_URL: http://localhost:${SEARCH_SERVICE_PORT:-4005}
+      VITE_CART_API_URL: http://localhost:${CART_SERVICE_PORT:-4003}
+      VITE_ORDER_API_URL: http://localhost:${ORDER_SERVICE_PORT:-4001}
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      - auth-service
+      - product-service
+      - search-service
+      - cart-service
+      - order-service
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5173/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "${PROMETHEUS_HOST_PORT:-9091}:9090"
+
+volumes:
+  ecommerce_pgdata:

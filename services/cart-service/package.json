@@ -1,0 +1,18 @@
+{
+  "name": "cart-service",
+  "version": "1.0.0",
+  "description": "Redis-backed shopping cart service with PostgreSQL persistence",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.12.0",
+    "prom-client": "^15.1.3",
+    "redis": "^4.6.14"
+  }
+}

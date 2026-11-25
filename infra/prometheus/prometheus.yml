@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth-service:4004']
+  - job_name: 'product-service'
+    static_configs:
+      - targets: ['product-service:4002']
+  - job_name: 'search-service'
+    static_configs:
+      - targets: ['search-service:4005']
+  - job_name: 'cart-service'
+    static_configs:
+      - targets: ['cart-service:4003']
+  - job_name: 'order-service'
+    static_configs:
+      - targets: ['order-service:4001']
+  - job_name: 'payops-mock'
+    static_configs:
+      - targets: ['payops-mock:3005']
