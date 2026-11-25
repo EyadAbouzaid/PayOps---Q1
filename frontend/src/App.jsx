@@ -12,6 +12,16 @@ function formatUsd(cents) {
   return `$${(Number(cents || 0) / 100).toFixed(2)}`;
 }
 
+function getStatusPillClass(status) {
+  if (status === 'PAID') return 'status-pill status-paid';
+  if (status === 'PAYMENT_FAILED') return 'status-pill status-failed';
+  return 'status-pill status-pending';
+}
+
+function formatOrderStatus(status) {
+  return status === 'PAID' ? 'Paid' : status;
+}
+
 export default function App() {
   const [page, setPage] = useState('products');
   const [token, setToken] = useState(localStorage.getItem('ecom_token') || '');
@@ -19,9 +29,9 @@ export default function App() {
 
   // Auth form
   const [authMode, setAuthMode] = useState('login');
-  const [email, setEmail] = useState('demo@store.io');
+  const [email, setEmail] = useState('demo@cloudops.com');
   const [password, setPassword] = useState('password123');
-  const [fullName, setFullName] = useState('Demo Buyer');
+  const [fullName, setFullName] = useState('Demo User');
 
   // Products & Search
   const [products, setProducts] = useState([]);
@@ -42,7 +52,7 @@ export default function App() {
   // Orders
   const [orders, setOrders] = useState([]);
   const [activeOrder, setActiveOrder] = useState(null);
-  const [banner, setBanner] = useState('');
+  const [banner, setBanner] = useState(null);
 
   useEffect(() => {
     loadProducts();
@@ -106,7 +116,7 @@ export default function App() {
 
   async function handleAuth(e) {
     e.preventDefault();
-    setBanner('');
+    setBanner(null);
     const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
     const body = authMode === 'register' ? { email, password, full_name: fullName } : { email, password };
     const res = await fetch(`${AUTH_URL}${endpoint}`, {
@@ -116,7 +126,7 @@ export default function App() {
     });
     const data = await res.json();
     if (!res.ok) {
-      setBanner(data?.error?.message || 'Authentication failed');
+      setBanner({ type: 'error', text: data?.error?.message || 'Authentication failed' });
       return;
     }
     localStorage.setItem('ecom_token', data.token);
@@ -128,7 +138,7 @@ export default function App() {
   async function addToCart(product) {
     if (!token) {
       setPage('auth');
-      setBanner('Please sign in or register before adding items to cart.');
+      setBanner({ type: 'info', text: 'Please sign in or register before adding items to cart.' });
       return;
     }
     const res = await fetch(`${CART_URL}/api/cart/items`, {
@@ -143,7 +153,7 @@ export default function App() {
     });
     if (res.ok) {
       setCart(await res.json());
-      setBanner(`Added ${product.name} to cart.`);
+      setBanner({ type: 'success', text: `Added ${product.name} to cart.` });
     }
   }
 
@@ -160,7 +170,7 @@ export default function App() {
     e.preventDefault();
     if (!token || cart.items.length === 0) return;
     setCheckoutBusy(true);
-    setBanner('');
+    setBanner(null);
     try {
       const res = await fetch(`${ORDER_URL}/api/orders`, {
         method: 'POST',
@@ -178,7 +188,7 @@ export default function App() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setBanner(data?.error?.message || 'Order creation failed');
+        setBanner({ type: 'error', text: data?.error?.message || 'Order creation failed' });
         return;
       }
       setActiveOrder(data.order);
@@ -203,158 +213,445 @@ export default function App() {
     }
   }
 
+  const cartCount = cart.items.reduce((s, i) => s + i.quantity, 0);
+
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', maxWidth: 1040, margin: '0 auto', padding: 20 }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ddd', paddingBottom: 12, marginBottom: 20 }}>
-        <h2 style={{ margin: 0 }}>CloudOps Store (USD)</h2>
-        <nav style={{ display: 'flex', gap: 10 }}>
-          <button data-testid="nav-products" onClick={() => setPage('products')}>Products</button>
-          <button data-testid="nav-cart" onClick={() => { loadCart(); setPage('cart'); }}>
-            Cart ({cart.items.reduce((s, i) => s + i.quantity, 0)})
-          </button>
-          <button data-testid="nav-orders" onClick={() => { loadOrders(); setPage('orders'); }}>Orders</button>
-          {user ? (
-            <button onClick={() => { setToken(''); setUser(null); localStorage.removeItem('ecom_token'); }}>
-              Logout ({user.email})
+    <div className="app-shell">
+      <header className="navbar">
+        <div className="navbar-inner">
+          <div className="brand" onClick={() => setPage('products')}>
+            <span className="brand-mark">C</span>
+            <h2 className="brand-title">CloudOps Store</h2>
+            <span className="brand-currency">USD</span>
+          </div>
+
+          <nav className="nav-links">
+            <button
+              type="button"
+              data-testid="nav-products"
+              className={`nav-pill ${page === 'products' ? 'active' : ''}`}
+              onClick={() => setPage('products')}
+            >
+              Products
             </button>
-          ) : (
-            <button data-testid="nav-auth" onClick={() => setPage('auth')}>Login / Register</button>
-          )}
-        </nav>
+            <button
+              type="button"
+              data-testid="nav-cart"
+              className={`nav-pill ${page === 'cart' || page === 'checkout' ? 'active' : ''}`}
+              onClick={() => {
+                loadCart();
+                setPage('cart');
+              }}
+            >
+              <span>Cart</span>{' '}
+              <span className="cart-badge">({cartCount})</span>
+            </button>
+            <button
+              type="button"
+              data-testid="nav-orders"
+              className={`nav-pill ${page === 'orders' ? 'active' : ''}`}
+              onClick={() => {
+                loadOrders();
+                setPage('orders');
+              }}
+            >
+              Orders
+            </button>
+            {user ? (
+              <button
+                type="button"
+                className="nav-pill nav-pill-outline"
+                onClick={() => {
+                  setToken('');
+                  setUser(null);
+                  localStorage.removeItem('ecom_token');
+                }}
+              >
+                Logout ({user.email})
+              </button>
+            ) : (
+              <button
+                type="button"
+                data-testid="nav-auth"
+                className={`nav-pill ${page === 'auth' ? 'active' : 'nav-pill-primary'}`}
+                onClick={() => setPage('auth')}
+              >
+                Login / Register
+              </button>
+            )}
+          </nav>
+        </div>
       </header>
 
-      {banner && (
-        <div style={{ background: '#eef6ff', border: '1px solid #99c2ff', padding: 10, borderRadius: 6, marginBottom: 16 }}>
-          {banner}
-        </div>
-      )}
-
-      {page === 'auth' && (
-        <form onSubmit={handleAuth} style={{ maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <h3>{authMode === 'register' ? 'Create Account' : 'Sign In'}</h3>
-          {authMode === 'register' && (
-            <input data-testid="auth-name" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-          )}
-          <input data-testid="auth-email" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <input data-testid="auth-password" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          <button data-testid="auth-submit" type="submit">{authMode === 'register' ? 'Register' : 'Login'}</button>
-          <button type="button" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}>
-            {authMode === 'login' ? 'Need an account? Register' : 'Have an account? Login'}
-          </button>
-        </form>
-      )}
-
-      {page === 'products' && (
-        <div>
-          <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-            <input
-              data-testid="search-input"
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ flex: 1, padding: 8 }}
-            />
-            <select data-testid="category-select" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
-              <option value="">All Categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.slug}>{c.name}</option>
-              ))}
-            </select>
-            <button data-testid="search-btn" type="submit">Search</button>
-            <button type="button" onClick={() => { setSearchQuery(''); setSelectedCategory(''); loadProducts(); }}>Reset</button>
-          </form>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-            {products.map((p) => (
-              <div key={p.id} data-testid={`product-card-${p.id}`} style={{ border: '1px solid #ddd', borderRadius: 8, padding: 14 }}>
-                <div style={{ fontSize: 12, color: '#666' }}>{p.category_name || 'General'}</div>
-                <h4 style={{ margin: '6px 0' }}>{p.name}</h4>
-                <p style={{ fontSize: 14, color: '#444' }}>{p.description}</p>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                  <strong>{formatUsd(p.price_cents)}</strong>
-                  <button data-testid={`add-to-cart-${p.id}`} onClick={() => addToCart(p)}>Add to Cart</button>
-                </div>
-              </div>
-            ))}
+      <main className="main-container">
+        {banner && (
+          <div className={`alert-banner alert-${banner.type || 'info'}`} role="status">
+            <span>{banner.text}</span>
+            <button type="button" className="alert-dismiss" aria-label="Dismiss alert" onClick={() => setBanner(null)}>
+              ×
+            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {page === 'cart' && (
-        <div>
-          <h3>Your Shopping Cart</h3>
-          {cart.items.length === 0 ? (
-            <p>Your cart is empty.</p>
-          ) : (
-            <div>
-              {cart.items.map((item) => (
-                <div key={item.product_id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #eee' }}>
-                  <div>
-                    <strong>{item.product_name}</strong> — {formatUsd(item.unit_price_cents)} each
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <button onClick={() => updateCartQty(item.product_id, item.quantity - 1)}>-</button>
-                    <span>{item.quantity}</span>
-                    <button onClick={() => updateCartQty(item.product_id, item.quantity + 1)}>+</button>
-                  </div>
-                </div>
-              ))}
-              <h4>Total: {formatUsd(cart.total_cents)} USD</h4>
-              <button data-testid="proceed-checkout" onClick={() => setPage('checkout')}>Proceed to Checkout</button>
+        {page === 'auth' && (
+          <div className="card auth-card">
+            <div className="auth-header">
+              <h3 className="auth-title">{authMode === 'register' ? 'Create Account' : 'Sign In'}</h3>
+              <p className="auth-subtitle">
+                {authMode === 'register'
+                  ? 'Create a CloudOps Store account to manage your cart and orders.'
+                  : 'Sign in with any email to shop and test PayOps checkout.'}
+              </p>
             </div>
-          )}
-        </div>
-      )}
 
-      {page === 'checkout' && (
-        <form onSubmit={handleCheckout} style={{ maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <h3>Checkout — Total: {formatUsd(cart.total_cents)} USD</h3>
-          <label>
-            Card Number
-            <input data-testid="card-number" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} required style={{ width: '100%', padding: 8 }} />
-          </label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input data-testid="card-exp-month" placeholder="MM" value={expMonth} onChange={(e) => setExpMonth(e.target.value)} required />
-            <input data-testid="card-exp-year" placeholder="YYYY" value={expYear} onChange={(e) => setExpYear(e.target.value)} required />
-            <input data-testid="card-cvv" placeholder="CVV" value={cardCvv} onChange={(e) => setCardCvv(e.target.value)} required />
+            <form onSubmit={handleAuth} className="auth-form">
+              {authMode === 'register' && (
+                <label className="field-label">
+                  Full Name
+                  <input
+                    className="input"
+                    data-testid="auth-name"
+                    placeholder="Full Name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                  />
+                </label>
+              )}
+              <label className="field-label">
+                Email
+                <input
+                  className="input"
+                  data-testid="auth-email"
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </label>
+              <label className="field-label">
+                Password
+                <input
+                  className="input"
+                  data-testid="auth-password"
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </label>
+
+              <button data-testid="auth-submit" type="submit" className="btn btn-primary btn-full">
+                {authMode === 'register' ? 'Register' : 'Login'}
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-ghost btn-full"
+                onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}
+              >
+                {authMode === 'login' ? 'Need an account? Register' : 'Have an account? Login'}
+              </button>
+            </form>
+
+            <div className="demo-hint">
+              Demo account: <strong>demo@cloudops.com</strong> / <strong>password123</strong>
+            </div>
           </div>
-          <button data-testid="submit-payment" type="submit" disabled={checkoutBusy}>
-            {checkoutBusy ? 'Processing via PayOps...' : `Pay ${formatUsd(cart.total_cents)}`}
-          </button>
-        </form>
-      )}
+        )}
 
-      {page === 'orders' && (
-        <div>
-          <h3>Order Status</h3>
-          {activeOrder && (
-            <div data-testid="active-order-banner" style={{ border: '2px solid #333', borderRadius: 8, padding: 14, marginBottom: 20 }}>
-              <div><strong>Latest Order ID:</strong> {activeOrder.id}</div>
-              <div><strong>Payment Intent ID:</strong> {activeOrder.payment_intent_id || 'N/A'}</div>
-              <div><strong>Total:</strong> {formatUsd(activeOrder.total_amount_cents)} {activeOrder.currency}</div>
-              <div>
-                <strong>Status:</strong>{' '}
-                <span data-testid="order-status-label">
-                  {activeOrder.status === 'PAID' ? 'Paid' : activeOrder.status}
-                </span>
+        {page === 'products' && (
+          <div>
+            <form onSubmit={handleSearch} className="card search-bar">
+              <div className="search-input-wrap">
+                <input
+                  className="input"
+                  data-testid="search-input"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
-              {activeOrder.failure_reason && <div style={{ color: 'crimson' }}>Reason: {activeOrder.failure_reason}</div>}
-              {activeOrder.status === 'PENDING_PAYMENT' && (
-                <button onClick={() => syncOrderPayment(activeOrder.id)} style={{ marginTop: 8 }}>Refresh Payment Status</button>
+              <div className="search-select-wrap">
+                <select
+                  className="select"
+                  data-testid="category-select"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  <option value="">All Categories</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.slug}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="search-actions">
+                <button data-testid="search-btn" type="submit" className="btn btn-primary">
+                  Search
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCategory('');
+                    loadProducts();
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+            </form>
+
+            <div className="product-grid">
+              {products.map((p) => (
+                <div key={p.id} data-testid={`product-card-${p.id}`} className="card product-card">
+                  <div>
+                    <span className="category-badge">{p.category_name || 'General'}</span>
+                    <h4 className="product-title">{p.name}</h4>
+                    <p className="product-desc">{p.description}</p>
+                  </div>
+                  <div className="product-footer">
+                    <strong className="product-price">{formatUsd(p.price_cents)}</strong>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      data-testid={`add-to-cart-${p.id}`}
+                      onClick={() => addToCart(p)}
+                    >
+                      Add to Cart
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {page === 'cart' && (
+          <div>
+            <h3 className="section-title">Your Shopping Cart</h3>
+            <div className="card cart-card">
+              {cart.items.length === 0 ? (
+                <p style={{ margin: 0, color: 'var(--text-muted)' }}>Your cart is empty.</p>
+              ) : (
+                <div>
+                  {cart.items.map((item) => (
+                    <div key={item.product_id} className="cart-row">
+                      <div>
+                        <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{item.product_name}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                          {formatUsd(item.unit_price_cents)} each
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <div className="qty-controls">
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            onClick={() => updateCartQty(item.product_id, item.quantity - 1)}
+                          >
+                            -
+                          </button>
+                          <span className="qty-value">{item.quantity}</span>
+                          <button
+                            type="button"
+                            className="qty-btn"
+                            onClick={() => updateCartQty(item.product_id, item.quantity + 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+                        <strong style={{ minWidth: 80, textAlign: 'right' }}>
+                          {formatUsd(item.unit_price_cents * item.quantity)}
+                        </strong>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="cart-summary">
+                    <h4 style={{ margin: 0, fontSize: 18 }}>Total: {formatUsd(cart.total_cents)} USD</h4>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      data-testid="proceed-checkout"
+                      onClick={() => setPage('checkout')}
+                    >
+                      Proceed to Checkout
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
-          )}
+          </div>
+        )}
 
-          {orders.map((o) => (
-            <div key={o.id} style={{ border: '1px solid #ddd', borderRadius: 6, padding: 12, marginBottom: 10 }}>
-              <div><strong>Order:</strong> {o.id}</div>
-              <div><strong>Amount:</strong> {formatUsd(o.total_amount_cents)} {o.currency}</div>
-              <div><strong>Status:</strong> {o.status === 'PAID' ? 'Paid' : o.status}</div>
-              <div><strong>PayOps Intent:</strong> {o.payment_intent_id || 'Pending'}</div>
-            </div>
-          ))}
-        </div>
-      )}
+        {page === 'checkout' && (
+          <div className="card checkout-card">
+            <h3 className="section-title" style={{ marginBottom: 6 }}>
+              Checkout — Total: {formatUsd(cart.total_cents)} USD
+            </h3>
+            <p style={{ margin: '0 0 18px', fontSize: 13.5, color: 'var(--text-muted)' }}>
+              Secured via PayOps mock payment gateway.
+            </p>
+
+            <form onSubmit={handleCheckout} className="auth-form">
+              <label className="field-label">
+                Card Number
+                <input
+                  className="input"
+                  data-testid="card-number"
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value)}
+                  required
+                />
+              </label>
+
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>
+                  Quick-fill PayOps test cards
+                </div>
+                <div className="test-card-chips">
+                  <button
+                    type="button"
+                    className="chip-btn"
+                    onClick={() => setCardNumber('4242424242424242')}
+                  >
+                    4242424242424242 (Paid)
+                  </button>
+                  <button
+                    type="button"
+                    className="chip-btn"
+                    onClick={() => setCardNumber('4000000000000002')}
+                  >
+                    4000000000000002 (Declined)
+                  </button>
+                </div>
+              </div>
+
+              <div className="card-row-3">
+                <label className="field-label">
+                  Month
+                  <input
+                    className="input"
+                    data-testid="card-exp-month"
+                    placeholder="MM"
+                    value={expMonth}
+                    onChange={(e) => setExpMonth(e.target.value)}
+                    required
+                  />
+                </label>
+                <label className="field-label">
+                  Year
+                  <input
+                    className="input"
+                    data-testid="card-exp-year"
+                    placeholder="YYYY"
+                    value={expYear}
+                    onChange={(e) => setExpYear(e.target.value)}
+                    required
+                  />
+                </label>
+                <label className="field-label">
+                  CVV
+                  <input
+                    className="input"
+                    data-testid="card-cvv"
+                    placeholder="CVV"
+                    value={cardCvv}
+                    onChange={(e) => setCardCvv(e.target.value)}
+                    required
+                  />
+                </label>
+              </div>
+
+              <button
+                data-testid="submit-payment"
+                type="submit"
+                className="btn btn-primary btn-full"
+                disabled={checkoutBusy}
+              >
+                {checkoutBusy ? 'Processing via PayOps...' : `Pay ${formatUsd(cart.total_cents)}`}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {page === 'orders' && (
+          <div>
+            <h3 className="section-title">Order Status</h3>
+            {activeOrder && (
+              <div data-testid="active-order-banner" className="card active-order-card">
+                <div className="order-header-row">
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase' }}>
+                      Latest Order
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>{activeOrder.id}</div>
+                  </div>
+                  <span data-testid="order-status-label" className={getStatusPillClass(activeOrder.status)}>
+                    {formatOrderStatus(activeOrder.status)}
+                  </span>
+                </div>
+
+                <div className="order-meta">
+                  <div>
+                    <strong>Payment Intent ID:</strong> {activeOrder.payment_intent_id || 'N/A'}
+                  </div>
+                  <div>
+                    <strong>Total:</strong> {formatUsd(activeOrder.total_amount_cents)} {activeOrder.currency}
+                  </div>
+                </div>
+
+                {activeOrder.failure_reason && (
+                  <div style={{ marginTop: 10, fontSize: 13.5, fontWeight: 500, color: '#B91C1C' }}>
+                    Reason: {activeOrder.failure_reason}
+                  </div>
+                )}
+
+                {activeOrder.status === 'PENDING_PAYMENT' && (
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => syncOrderPayment(activeOrder.id)}
+                    style={{ marginTop: 12 }}
+                  >
+                    Refresh Payment Status
+                  </button>
+                )}
+              </div>
+            )}
+
+            {orders.length === 0 ? (
+              <div className="card order-card" style={{ color: 'var(--text-muted)' }}>
+                No orders yet.
+              </div>
+            ) : (
+              orders.map((o) => (
+                <div key={o.id} className="card order-card">
+                  <div className="order-header-row">
+                    <div>
+                      <strong>Order:</strong> {o.id}
+                    </div>
+                    <span className={getStatusPillClass(o.status)}>{formatOrderStatus(o.status)}</span>
+                  </div>
+                  <div className="order-meta">
+                    <div>
+                      <strong>Amount:</strong> {formatUsd(o.total_amount_cents)} {o.currency}
+                    </div>
+                    <div>
+                      <strong>PayOps Intent:</strong> {o.payment_intent_id || 'Pending'}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </main>
     </div>
   );
 }

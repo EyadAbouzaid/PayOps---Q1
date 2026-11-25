@@ -92,3 +92,7 @@ INSERT INTO products (id, category_id, name, description, price_cents, stock_qua
   ('22222222-2222-2222-2222-222222222204', '11111111-1111-1111-1111-111111111103', 'Enterprise Kubernetes Cluster Pack', 'Managed multi-AZ Kubernetes control plane voucher ($300.00 value)', 30000, 200, 'https://placehold.co/400x300?text=K8s+Cluster+Pack'),
   ('22222222-2222-2222-2222-222222222205', '11111111-1111-1111-1111-111111111101', 'Edge Gateway Mini Server', 'Low-power ARM64 edge node with dual 2.5GbE NICs and NVMe slot', 24900, 40, 'https://placehold.co/400x300?text=Edge+Server')
 ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO users (email, password_hash, full_name) VALUES
+  ('demo@cloudops.com', '$2a$10$e9rT1ZL4w0UdlFppOqxxX.NHqdkFogGM1W86ED5VRDAXegfAbnBDy', 'Demo User')
+ON CONFLICT (email) DO NOTHING;
